@@ -13,11 +13,9 @@ export default function VerifyPage() {
     try {
       let pid = null;
 
-      // Case 1: paymentId=pay_xxx
       const pidMatch = text.match(/paymentId=([a-zA-Z0-9_]+)/);
       if (pidMatch) pid = pidMatch[1];
 
-      // Case 2: raw pay_xxx anywhere
       if (!pid) {
         const payMatch = text.match(/pay_[a-zA-Z0-9_]+/);
         if (payMatch) pid = payMatch[0];
@@ -35,7 +33,7 @@ export default function VerifyPage() {
       const json = await res.json();
 
       if (json.error) {
-        alert(json.error); // Booking not found
+        alert(json.error);
         return;
       }
 
@@ -55,12 +53,12 @@ export default function VerifyPage() {
         isVerified: Boolean(json.isVerified),
       });
     } catch (err) {
-      console.error("QR error:", err);
+      console.error(err);
       alert("Scan failed");
     }
   }
 
-  // ✅ Check In → PUT request
+  // ✅ Check In
   async function handleCheckIn() {
     if (!paymentId) return;
 
@@ -78,15 +76,9 @@ export default function VerifyPage() {
 
       if (!res.ok) throw new Error("Check-in failed");
 
-      // optimistic UI update
-      setData((prev) => ({
-        ...prev,
-        isVerified: true,
-      }));
-
+      setData((prev) => ({ ...prev, isVerified: true }));
       setShowModal(true);
     } catch (err) {
-      console.error(err);
       alert("Failed to check in");
     } finally {
       setLoading(false);
@@ -94,77 +86,83 @@ export default function VerifyPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-black text-white p-4 flex flex-col items-center">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-6">
+      <div className="w-full max-w-xl text-center space-y-6">
 
-      <h1 className="text-3xl font-bold mb-6 tracking-wide">
-        Entry Verification
-      </h1>
+        {/* Header */}
+        <span className="inline-block rounded-full bg-white/10 px-4 py-1 text-sm tracking-wide text-zinc-300">
+          Entry Verification
+        </span>
 
-      {/* 📷 Scanner */}
-      {!data && (
-        <div className="w-full max-w-md bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-4 shadow-xl">
-          <p className="text-center text-gray-300 mb-3">
-            Scan Pass QR Code
-          </p>
-          <QRScanner onScan={handleScan} />
-        </div>
-      )}
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+          City Fest
+        </h1>
 
-      {/* 🎟️ Verification Card */}
-      {data && (
-        <div className="w-full max-w-lg mt-4 bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-6">
+        <p className="text-zinc-400">
+          Scan the QR code below to verify and check in a guest.
+        </p>
 
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">{data.name}</h2>
-              <p className="text-sm text-gray-300">
-                Event Date: {data.date}
-              </p>
+        {/* Scanner */}
+        {!data && (
+          <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-4">
+            <QRScanner onScan={handleScan} />
+          </div>
+        )}
+
+        {/* Verification Card */}
+        {data && (
+          <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-6 text-left space-y-4">
+
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-semibold">{data.name}</h2>
+                <p className="text-sm text-zinc-400">
+                  Event Date: {data.date}
+                </p>
+              </div>
+
+              <span
+                className={`rounded-full px-3 py-1 text-sm font-medium ${
+                  data.isVerified
+                    ? "bg-emerald-500/15 text-emerald-400"
+                    : "bg-yellow-500/15 text-yellow-400"
+                }`}
+              >
+                {data.isVerified ? "Checked In" : "Not Checked In"}
+              </span>
             </div>
 
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-semibold ${
+            <div className="text-sm text-zinc-300 space-y-1">
+              <p>📞 {data.phone}</p>
+              <p>✉️ {data.email}</p>
+            </div>
+
+            <button
+              onClick={handleCheckIn}
+              disabled={data.isVerified || loading}
+              className={`w-full rounded-xl px-6 py-3 font-medium transition ${
                 data.isVerified
-                  ? "bg-emerald-500/20 text-emerald-400"
-                  : "bg-yellow-500/20 text-yellow-400"
+                  ? "bg-white/10 text-zinc-500 cursor-not-allowed"
+                  : loading
+                  ? "bg-emerald-400 text-black"
+                  : "bg-white text-black hover:bg-zinc-200"
               }`}
             >
-              {data.isVerified ? "Checked In" : "Not Checked In"}
-            </span>
+              {loading
+                ? "Checking In..."
+                : data.isVerified
+                ? "Already Checked In"
+                : "Check In"}
+            </button>
           </div>
+        )}
+      </div>
 
-          <div className="space-y-2 text-gray-200 text-sm">
-            <p>📞 {data.phone}</p>
-            <p>✉️ {data.email}</p>
-          </div>
-
-          <button
-            onClick={handleCheckIn}
-            disabled={data.isVerified || loading}
-            className={`mt-6 w-full py-3 rounded-xl font-semibold text-lg
-              ${
-                data.isVerified
-                  ? "bg-gray-600/40 text-gray-400 cursor-not-allowed"
-                  : loading
-                  ? "bg-emerald-400 cursor-wait"
-                  : "bg-emerald-500 hover:bg-emerald-600 text-black shadow-lg shadow-emerald-500/30"
-              }
-            `}
-          >
-            {loading
-              ? "Checking In..."
-              : data.isVerified
-              ? "Already Checked In"
-              : "Check In"}
-          </button>
-        </div>
-      )}
-
-      {/* ✅ SUCCESS MODAL */}
+      {/* Success Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="bg-white text-black rounded-2xl p-6 max-w-sm w-full text-center animate-fade-in shadow-2xl">
-            <div className="text-5xl text-emerald-500 mb-3">✔</div>
+            <div className="text-5xl mb-3">✔</div>
             <h2 className="text-2xl font-bold mb-2">
               Check-in Successful
             </h2>
@@ -178,13 +176,13 @@ export default function VerifyPage() {
                 setData(null);
                 setPaymentId(null);
               }}
-              className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 font-semibold"
+              className="w-full rounded-xl bg-black text-white py-2 font-medium hover:bg-zinc-800 transition"
             >
               Done
             </button>
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
