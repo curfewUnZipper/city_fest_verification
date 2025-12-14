@@ -10,6 +10,7 @@ export default async function PassPage({ params }) {
 
   const data = await getPassDetails(passid);
 
+  // Booking not found OR invalid structure
   if (!data) {
     return <InvalidCard message="Invalid or Expired Pass" />;
   }
@@ -28,10 +29,17 @@ export default async function PassPage({ params }) {
           <Info label="Email" value={data.email} />
         </div>
 
+        {/* STATUS */}
         <div className="mt-6 text-center">
-          <span className="inline-block px-4 py-2 rounded-full bg-green-100 text-green-700 font-semibold">
-            ✔ Verified
-          </span>
+          {data.isVerified ? (
+            <span className="inline-block px-4 py-2 rounded-full bg-green-100 text-green-700 font-semibold">
+              ✔ Checked In
+            </span>
+          ) : (
+            <span className="inline-block px-4 py-2 rounded-full bg-yellow-100 text-yellow-700 font-semibold">
+              ⏳ Not Checked In
+            </span>
+          )}
         </div>
       </div>
     </main>
