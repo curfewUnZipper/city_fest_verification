@@ -18,25 +18,9 @@ const Page = () => {
         </h1>
 
         <p className="text-zinc-400 text-lg">
-          Welcome to the dev-site for City Fest — where experiences, culture,
-          and code come together.
+          Welcome to the City Fest — where experiences and culture come together.
         </p>
 
-        <div className="flex justify-center gap-4 pt-4">
-          <button
-            onClick={() => router.push("/pay_RrclKtAqriMMPJ")}
-            className="rounded-xl bg-white text-black px-6 py-3 font-medium hover:bg-zinc-200 transition"
-          >
-            View Info
-          </button>
-
-          <button
-            onClick={() => router.push("/verify")}
-            className="rounded-xl border border-white/20 px-6 py-3 text-white hover:bg-white/10 transition"
-          >
-            Check-In
-          </button>
-        </div>
       </div>
     </div>
   );

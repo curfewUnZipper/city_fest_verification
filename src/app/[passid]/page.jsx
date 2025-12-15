@@ -1,19 +1,67 @@
 export const dynamic = "force-dynamic";
-import { getPassDetails } from "@/lib/api";
+
+/* ------------------ SERVER FETCH ------------------ */
+async function getPassDetails(code) {
+  try {
+    const res = await fetch(
+      `https://cityfest.vercel.app/api/pass/verify?code=${code}`,
+      {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      }
+    );
+
+    const text = await res.text();
+
+    if (!text || !text.trim().startsWith("{")) {
+      console.error("Non-JSON response:", text);
+      return { __error: "NON_JSON" };
+    }
+
+    return JSON.parse(text);
+  } catch (err) {
+    console.error("Fetch failed:", err);
+    return { __error: "FETCH_FAILED" };
+  }
+}
 
 export default async function PassPage({ params }) {
-  const { passid } = await params;
+  const { passid } = await params; // ✅ FIX HERE
 
-  if (!passid) {
+  if (!passid || passid.length !== 6) {
     return <InvalidCard message="Invalid pass link" />;
   }
 
   const data = await getPassDetails(passid);
 
-  if (!data) {
-    return <InvalidCard message="Invalid or Expired Pass" />;
+  if (data.__error) {
+    return (
+      <InvalidCard message="Verification service temporarily unavailable" />
+    );
   }
 
+  if (!data.success && data.errorType === "INVALID_CODE") {
+    return <InvalidCard message="Invalid or fake QR code" />;
+  }
+
+  if (data.success) {
+    return (
+      <VerifiedCard
+        code={passid}
+        passType={data.passType}
+        isCheckedIn={data.isCheckedIn}
+        checkedInAt={data.checkedInAt}
+        message={data.message}
+      />
+    );
+  }
+
+  return <InvalidCard message="Invalid or expired pass" />;
+}
+
+
+/* ------------------ VERIFIED CARD ------------------ */
+function VerifiedCard({ code, passType, isCheckedIn, checkedInAt, message }) {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-6">
       <div className="w-full max-w-md rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-6 space-y-6">
@@ -25,36 +73,50 @@ export default async function PassPage({ params }) {
           </span>
 
           <h1 className="text-2xl font-bold tracking-tight">
-            Pass Verification
+            {passType} Pass
           </h1>
-        </div>
 
-        {/* Info */}
-        <div className="space-y-4 text-sm">
-          <Info label="Name" value={data.name} />
-          <Info label="Date" value={data.date} />
-          <Info label="Phone" value={data.phone} />
-          <Info label="Email" value={data.email} />
+          <p className="text-xs text-zinc-400">
+            Code: {code}
+          </p>
         </div>
 
         {/* Status */}
-        <div className="pt-4 text-center">
-          {data.isVerified ? (
-            <span className="inline-block rounded-full bg-emerald-500/15 text-emerald-400 px-4 py-2 text-sm font-medium">
-              ✔ Checked In
-            </span>
+        <div className="pt-4 text-center space-y-2">
+          {isCheckedIn ? (
+            <>
+              <span className="inline-block rounded-full bg-emerald-500/15 text-emerald-400 px-4 py-2 text-sm font-medium">
+                ✔ Checked In
+              </span>
+
+              {checkedInAt && (
+                <p className="text-xs text-zinc-400">
+                  Checked in at{" "}
+                  {new Date(checkedInAt).toLocaleString()}
+                </p>
+              )}
+            </>
           ) : (
             <span className="inline-block rounded-full bg-yellow-500/15 text-yellow-400 px-4 py-2 text-sm font-medium">
               ⏳ Not Checked In
             </span>
           )}
         </div>
+
+        {/* Backend message */}
+        <p className="text-xs text-zinc-500 text-center pt-2">
+          {message}
+        </p>
+
+        <p className="text-xs text-zinc-500 text-center pt-4">
+          Please present this pass at the entry gate for verification.
+        </p>
       </div>
     </main>
   );
 }
 
-/* ---------- Invalid Card (Dark Theme) ---------- */
+/* ------------------ INVALID CARD ------------------ */
 function InvalidCard({ message }) {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-6">
@@ -79,15 +141,5 @@ function InvalidCard({ message }) {
         </p>
       </div>
     </main>
-  );
-}
-
-/* ---------- Info Row ---------- */
-function Info({ label, value }) {
-  return (
-    <div className="flex justify-between border-b border-white/10 pb-2 text-zinc-300">
-      <span className="text-zinc-400">{label}</span>
-      <span className="font-medium text-white">{value}</span>
-    </div>
   );
 }
