@@ -94,14 +94,16 @@ export default function QRScanner({ onScan }) {
   };
 
   // 🖼 Scan from image
+ // 🖼 Scan from image (FIXED)
   const handleFileScan = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      const text = await qrCodeRef.current.scanFile(file, true);
+      const text = await qrCodeRef.current.scanFile(file, false); // 🔥 FIX
       onScan(text);
-    } catch {
+    } catch (err) {
+      console.error("Image scan failed:", err);
       alert("No QR code found in image");
     }
   };

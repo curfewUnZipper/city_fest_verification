@@ -7,13 +7,23 @@ export default function VerifyPage() {
   const [scanError, setScanError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [scannerKey, setScannerKey] = useState(0); // 🔥 IMPORTANT
 
-  // 🔍 Scan QR → extract CODE → verify via proxy
+  /* ---------- RESET FOR NEXT SCAN ---------- */
+  function resetScan() {
+    setData(null);
+    setScanError(null);
+    setShowModal(false);
+    setLoading(false);
+    setScannerKey((k) => k + 1); // 🔥 force scanner restart
+  }
+
+  /* ---------- SCAN & VERIFY ---------- */
   async function handleScan(text) {
     try {
       const code = text.split("/").pop()?.trim();
 
-      if (!code || code.length !== 6) {
+      if (!code || code.length !== 15) {
         setScanError({
           type: "INVALID",
           message: "Invalid QR Format",
@@ -25,10 +35,9 @@ export default function VerifyPage() {
         cache: "no-store",
       });
 
-      const raw = await res.text();
-      const json = JSON.parse(raw);
+      const json = await res.json();
 
-      // ❌ Fake / invalid QR
+      // ❌ Fake QR
       if (!json.success && json.errorType === "INVALID_CODE") {
         setScanError({
           type: "INVALID",
@@ -37,9 +46,8 @@ export default function VerifyPage() {
         return;
       }
 
-      // ⚠️ Already checked in
-      if (!json.success && json.errorType === "ALREADY_CHECKED_IN") {
-        setScanError(null);
+      // ⚠️ Already checked in (EXPLICIT CHECK)
+      if (json.isCheckedIn === true) {
         setData({
           code,
           passType: json.passType,
@@ -49,20 +57,20 @@ export default function VerifyPage() {
         return;
       }
 
-      // ✅ Valid & not yet checked in
-      if (json.success) {
-        setScanError(null);
+      // ✅ Valid & NOT checked in
+      if (json.success && json.isCheckedIn === false) {
         setData({
           code,
           passType: json.passType,
           isVerified: false,
         });
-      } else {
-        setScanError({
-          type: "ERROR",
-          message: json.message || "Verification failed",
-        });
+        return;
       }
+
+      setScanError({
+        type: "ERROR",
+        message: "Verification failed",
+      });
     } catch (err) {
       console.error("SCAN ERROR:", err);
       setScanError({
@@ -72,9 +80,9 @@ export default function VerifyPage() {
     }
   }
 
-  // ✅ Check In
+  /* ---------- CHECK IN ---------- */
   async function handleCheckIn() {
-    if (!data?.code) return;
+    if (!data?.code || data.isVerified) return;
 
     try {
       setLoading(true);
@@ -85,20 +93,8 @@ export default function VerifyPage() {
         body: JSON.stringify({ code: data.code }),
       });
 
-      const raw = await res.text();
-      const json = JSON.parse(raw);
+      const json = await res.json();
 
-      // ❌ Already checked in
-      if (!json.success && json.errorType === "ALREADY_CHECKED_IN") {
-        setData((prev) => ({
-          ...prev,
-          isVerified: true,
-          checkedInAt: json.checkedInAt,
-        }));
-        return;
-      }
-
-      // ❌ Any other failure
       if (!json.success) {
         setScanError({
           type: "ERROR",
@@ -107,8 +103,12 @@ export default function VerifyPage() {
         return;
       }
 
-      // ✅ Success
-      setData((prev) => ({ ...prev, isVerified: true }));
+      setData((prev) => ({
+        ...prev,
+        isVerified: true,
+        checkedInAt: json.checkedInAt || new Date().toISOString(),
+      }));
+
       setShowModal(true);
     } catch (err) {
       console.error("CHECK-IN ERROR:", err);
@@ -137,36 +137,31 @@ export default function VerifyPage() {
           Scan the QR code below to verify and check in a guest.
         </p>
 
-        {/* ❌ Fake / Error Card */}
+        {/* ❌ ERROR CARD */}
         {scanError && !data && (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-3 shadow-2xl">
             <div className="text-4xl">🚫</div>
-
             <h2 className="text-xl font-bold text-red-400">
               {scanError.message}
             </h2>
 
-            <p className="text-sm text-red-300">
-              This QR code is not valid for City Fest entry.
-            </p>
-
             <button
-              onClick={() => setScanError(null)}
-              className="mt-3 rounded-xl bg-red-500 text-white px-5 py-2 text-sm font-medium hover:bg-red-600 transition"
+              onClick={resetScan}
+              className="rounded-xl bg-red-500 text-white px-6 py-2 font-medium hover:bg-red-600 transition"
             >
               Scan Again
             </button>
           </div>
         )}
 
-        {/* Scanner */}
+        {/* 📷 SCANNER */}
         {!data && !scanError && (
           <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-4">
-            <QRScanner onScan={handleScan} />
+            <QRScanner key={scannerKey} onScan={handleScan} />
           </div>
         )}
 
-        {/* Verification Card */}
+        {/* ✅ VERIFIED CARD */}
         {data && (
           <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-6 text-left space-y-4">
 
@@ -180,7 +175,6 @@ export default function VerifyPage() {
                 </p>
               </div>
 
-              {/* STATUS BADGE */}
               <span
                 className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
                   data.isVerified
@@ -192,36 +186,33 @@ export default function VerifyPage() {
               </span>
             </div>
 
-            {/* Checked-in timestamp */}
             {data.checkedInAt && (
               <p className="text-xs text-zinc-400 text-right">
-                Checked in at{" "}
-                {new Date(data.checkedInAt).toLocaleString()}
+                Checked in at {new Date(data.checkedInAt).toLocaleString()}
               </p>
             )}
 
-            <button
-              onClick={handleCheckIn}
-              disabled={data.isVerified || loading}
-              className={`w-full rounded-xl px-6 py-3 font-medium transition ${
-                data.isVerified
-                  ? "bg-white/10 text-zinc-500 cursor-not-allowed"
-                  : loading
-                  ? "bg-emerald-400 text-black"
-                  : "bg-white text-black hover:bg-zinc-200"
-              }`}
-            >
-              {loading
-                ? "Checking In..."
-                : data.isVerified
-                ? "Already Checked In"
-                : "Check In"}
-            </button>
+            {!data.isVerified ? (
+              <button
+                onClick={handleCheckIn}
+                disabled={loading}
+                className="w-full rounded-xl bg-white text-black px-6 py-3 font-medium hover:bg-zinc-200 transition"
+              >
+                {loading ? "Checking In..." : "Check In"}
+              </button>
+            ) : (
+              <button
+                onClick={resetScan}
+                className="w-full rounded-xl bg-emerald-500 text-black px-6 py-3 font-medium hover:bg-emerald-400 transition"
+              >
+                Scan Next Pass
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* Success Modal */}
+      {/* 🎉 SUCCESS MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="bg-white text-black rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
@@ -229,18 +220,12 @@ export default function VerifyPage() {
             <h2 className="text-2xl font-bold mb-2">
               Check-in Successful
             </h2>
-            <p className="text-gray-600 mb-4">
-              Pass {data.code} has been checked in.
-            </p>
 
             <button
-              onClick={() => {
-                setShowModal(false);
-                setData(null);
-              }}
+              onClick={resetScan}
               className="w-full rounded-xl bg-black text-white py-2 font-medium hover:bg-zinc-800 transition"
             >
-              Done
+              Scan Next Pass
             </button>
           </div>
         </div>

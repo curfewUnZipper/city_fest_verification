@@ -17,7 +17,7 @@ async function getPassDetails(code) {
       console.error("Non-JSON response:", text);
       return { __error: "NON_JSON" };
     }
-
+    console.log(text);
     return JSON.parse(text);
   } catch (err) {
     console.error("Fetch failed:", err);
@@ -28,7 +28,7 @@ async function getPassDetails(code) {
 export default async function PassPage({ params }) {
   const { passid } = await params; // ✅ FIX HERE
 
-  if (!passid || passid.length !== 6) {
+  if (!passid || passid.length !== 15) {
     return <InvalidCard message="Invalid pass link" />;
   }
 
@@ -43,8 +43,8 @@ export default async function PassPage({ params }) {
   if (!data.success && data.errorType === "INVALID_CODE") {
     return <InvalidCard message="Invalid or fake QR code" />;
   }
-
   if (data.success) {
+    console.log(data);
     return (
       <VerifiedCard
         code={passid}
