@@ -153,21 +153,22 @@ export default function QRScanner({ onScan, enabled }) {
 
   /* ---------- IMAGE UPLOAD ---------- */
   const handleFileScan = async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    // 🔥 Use a TEMP scanner instance
     const fileScanner = new Html5Qrcode("qr-file-temp");
 
     try {
-      const text = await fileScanner.scanFile(file, false);
+      // 🔥 IMPORTANT: pass TRUE to fix mobile EXIF rotation
+      const text = await fileScanner.scanFile(file, true);
       onScan(text);
-    } catch {
+    } catch (err) {
       alert("No QR code found in image");
     } finally {
       await fileScanner.clear();
     }
   };
+
 
 
   return (
