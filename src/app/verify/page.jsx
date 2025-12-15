@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import QRScanner from "@/components/QRScanner";
 
@@ -7,7 +8,6 @@ export default function VerifyPage() {
   const [scanError, setScanError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [scannerKey, setScannerKey] = useState(0); // 🔥 IMPORTANT
 
   /* ---------- RESET FOR NEXT SCAN ---------- */
   function resetScan() {
@@ -15,7 +15,6 @@ export default function VerifyPage() {
     setScanError(null);
     setShowModal(false);
     setLoading(false);
-    setScannerKey((k) => k + 1); // 🔥 force scanner restart
   }
 
   /* ---------- SCAN & VERIFY ---------- */
@@ -46,7 +45,7 @@ export default function VerifyPage() {
         return;
       }
 
-      // ⚠️ Already checked in (EXPLICIT CHECK)
+      // ⚠️ Already checked in
       if (json.isCheckedIn === true) {
         setData({
           code,
@@ -121,6 +120,8 @@ export default function VerifyPage() {
     }
   }
 
+  const scannerEnabled = !data && !scanError;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-6">
       <div className="w-full max-w-xl text-center space-y-6">
@@ -137,6 +138,18 @@ export default function VerifyPage() {
           Scan the QR code below to verify and check in a guest.
         </p>
 
+        {/* 📷 SCANNER (ALWAYS MOUNTED) */}
+        <div
+          className={`rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-4 transition ${
+            scannerEnabled ? "block" : "hidden"
+          }`}
+        >
+          <QRScanner
+            onScan={handleScan}
+            enabled={scannerEnabled}
+          />
+        </div>
+
         {/* ❌ ERROR CARD */}
         {scanError && !data && (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-3 shadow-2xl">
@@ -151,13 +164,6 @@ export default function VerifyPage() {
             >
               Scan Again
             </button>
-          </div>
-        )}
-
-        {/* 📷 SCANNER */}
-        {!data && !scanError && (
-          <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl p-4">
-            <QRScanner key={scannerKey} onScan={handleScan} />
           </div>
         )}
 
